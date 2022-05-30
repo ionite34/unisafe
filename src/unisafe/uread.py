@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import io
-
 from bs4.dammit import UnicodeDammit
 from typing import TextIO, Generator
 import pathlib
@@ -18,7 +16,7 @@ _en_smart_re = {
 
 
 def uread(file_path: str, to_ascii: str = 'Smart',
-          escape_files: str | None = '.csv', new_quote_escape: str = '\\') -> TextIO:
+          escape_files: str | None = '.csv', new_quote_escape: str = '"') -> TextIO:
     """
     Context Manager for reading a file of unknown encoding as unicode.
 
@@ -26,6 +24,7 @@ def uread(file_path: str, to_ascii: str = 'Smart',
     :param new_quote_escape: Escape char for converted ascii quotes
     :param to_ascii: Convert to ascii
     :param escape_files: File Extensions to escape converted quotes (Use | to delimit multiple extensions)
+    :param new_quote_escape: Escape char for converted ascii quotes (Default: '"' (Double Quote)))
 
     to_ascii modes:
     - 'Smart': Converts smart quotes to ascii
@@ -38,7 +37,7 @@ def uread(file_path: str, to_ascii: str = 'Smart',
 
 class URead:
     def __init__(self, file_path: str, to_ascii: str = 'Smart',
-                 escape_files: str | None = '.csv', new_quote_escape: str = '\\'):
+                 escape_files: str | None = '.csv', new_quote_escape: str = '"'):
         """
         Context Manager for reading a file of unknown encoding as unicode.
 
@@ -46,6 +45,7 @@ class URead:
         :param new_quote_escape: Escape char for converted ascii quotes
         :param to_ascii: Convert to ascii
         :param escape_files: File Extensions to escape converted quotes (Use | to delimit multiple extensions)
+        :param new_quote_escape: Escape char for converted ascii quotes (Default: '"' (Double Quote)))
 
         to_ascii modes:
         - 'Smart': Converts smart quotes to ascii
