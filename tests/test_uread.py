@@ -1,7 +1,6 @@
 import io
 import csv
 from dataclasses import dataclass
-from typing import Literal
 import pandas as pd
 import pytest
 from pytest_lazyfixture import lazy_fixture as fx
