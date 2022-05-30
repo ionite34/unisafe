@@ -119,6 +119,44 @@ def test_uread_cx_csv(func, data):
             assert ','.join(escaped_vals) == expected
 
 
+# Test Read to Pandas DataFrame
+@pytest.mark.parametrize('func, data', [
+    (fx('get_open'), fx('data_raw')),
+    (fx('get_uread_csv'), fx('data_conv'))
+])
+def test_uread_cx_pandas(func, data):
+    with func() as f:
+        df = pd.read_csv(f)
+        f_rows = csv.reader(f)
+        for pd_row, csv_row in zip(df.itertuples(), f_rows):
+            for pd_item, csv_item in zip(pd_row, csv_row):
+                assert pd_item == csv_item
+
+
+# Test Multi-Encoding File
+def test_uread_multi_encoding():
+    # Built-in method should fail
+    with pytest.raises(UnicodeDecodeError):
+        with open('test_multi.txt', 'r', encoding='utf-8') as f:
+            f.read()
+    with pytest.raises(UnicodeDecodeError):
+        with open('test_multi.txt', 'r', encoding='windows-1252') as f:
+            f.read()
+    # Confirm the incorrect parts with error escape
+    with open('test_multi.txt', 'r', encoding='utf-8', errors='replace') as f:
+        result = f.read()
+        # There should be 2 replacement chars
+        assert result.count(u'\uFFFD') == 2
+        # Assert literal values
+        assert result == ''☃☃☃� Some really cursed file �œ
+ₓ
+၁𖡄''
+
+    # Using uread (Normalize Smart)
+    with uread('test_multi.txt') as f:
+        result2 = f.read()
+
+
 # Test Exceptions
 @pytest.mark.parametrize('func, data', [
     (lambda x: open(x), fx('data_raw')),
