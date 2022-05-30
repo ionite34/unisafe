@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from bs4.dammit import UnicodeDammit
+# from bs4.dammit import UnicodeDammit
+from os import PathLike
+
+from .parse.dammit import UnicodeDammit
 from typing import TextIO, Generator
 import pathlib
 
@@ -15,12 +18,12 @@ _en_smart_re = {
 }
 
 
-def uread(file_path: str, to_ascii: str = 'Smart',
+def uread(file: str | bytes | PathLike[str], to_ascii: str = 'Smart',
           escape_files: str | None = '.csv', new_quote_escape: str = '"') -> TextIO:
     """
     Context Manager for reading a file of unknown encoding as unicode.
 
-    :param file_path: Path to file to read
+    :param file: Path to file to read
     :param new_quote_escape: Escape char for converted ascii quotes
     :param to_ascii: Convert to ascii
     :param escape_files: File Extensions to escape converted quotes (Use | to delimit multiple extensions)
@@ -31,17 +34,17 @@ def uread(file_path: str, to_ascii: str = 'Smart',
     - 'All': Convert smart quotes, then drops all non-ascii chars
     - 'None': No conversion
     """
-    with URead(file_path, to_ascii, escape_files, new_quote_escape) as f:
+    with URead(file, to_ascii, escape_files, new_quote_escape) as f:
         return f
 
 
 class URead:
-    def __init__(self, file_path: str, to_ascii: str = 'Smart',
+    def __init__(self, file: str | bytes | PathLike[str], to_ascii: str = 'Smart',
                  escape_files: str | None = '.csv', new_quote_escape: str = '"'):
         """
         Context Manager for reading a file of unknown encoding as unicode.
 
-        :param file_path: Path to file to read
+        :param file: Path to file to read
         :param new_quote_escape: Escape char for converted ascii quotes
         :param to_ascii: Convert to ascii
         :param escape_files: File Extensions to escape converted quotes (Use | to delimit multiple extensions)
@@ -52,7 +55,7 @@ class URead:
         - 'All': Convert smart quotes, then drops all non-ascii chars
         - 'None': No conversion
         """
-        self.file_path = file_path
+        self.file_path = file
         self.to_ascii = to_ascii
         self.escape_char = new_quote_escape
         self.dict = _en_smart_re
@@ -60,7 +63,7 @@ class URead:
         if escape_files:  # Escape quotes in these files
             esc_files_set = set(escape_files.split('|'))
             # Modify the dictionary if reading csv
-            ext = pathlib.Path(file_path).suffix
+            ext = pathlib.Path(file).suffix
             if ext in esc_files_set and self.escape_char:
                 self.dict[u"\u201c"] = self.escape_char + '"'
                 self.dict[u"\u201d"] = self.escape_char + '"'
