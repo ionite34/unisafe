@@ -4,3 +4,5 @@ wheel>=0.37.1
 beautifulsoup4~=4.11.1
 pytest~=7.1.2
 pandas~=1.4.2
+chardet~=4.0.0
+cchardet~=2.1.7
