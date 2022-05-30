@@ -1,7 +1,8 @@
 import io
 import csv
 from dataclasses import dataclass
-
+from typing import Literal
+import pandas as pd
 import pytest
 from pytest_lazyfixture import lazy_fixture as fx
 
@@ -99,6 +100,24 @@ def test_uread_cx_iter(func, data):
     with func() as f, data.as_io() as d:
         for line, expected in zip(f, d):
             assert line == expected
+
+
+# Test Read to CSV and Quote escaping
+@pytest.mark.parametrize('func, data', [
+    (fx('get_open'), fx('data_raw')),
+    (fx('get_uread_csv'), fx('data_conv'))
+])
+def test_uread_cx_csv(func, data):
+    with func() as f:
+        f_rows = csv.reader(f)
+        for row, expected in zip(f_rows, data.lines()):
+            escaped_vals = []
+            for val in row:
+                # If the val contains a comma, enclose it in quotes
+                if ',' in val:
+                    val = f'"{val}"'
+                escaped_vals.append(val)
+            assert ','.join(escaped_vals) == expected
 
 
 # Test Exceptions
