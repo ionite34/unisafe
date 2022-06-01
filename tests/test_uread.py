@@ -19,7 +19,7 @@ expected_converted = """1,"Oh, what is this. This is a system" now, such there."
 
 
 @dataclass
-class TestData:
+class TextData:
     raw: str
 
     def as_io(self) -> io.StringIO:
@@ -32,12 +32,12 @@ class TestData:
 
 @pytest.fixture(scope='module')
 def data_raw():
-    return TestData(expected_raw)
+    return TextData(expected_raw)
 
 
 @pytest.fixture(scope='module')
 def data_conv():
-    return TestData(expected_converted)
+    return TextData(expected_converted)
 
 
 @pytest.fixture(scope='function')
