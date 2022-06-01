@@ -1,20 +1,39 @@
 from __future__ import annotations
 
 # from bs4.dammit import UnicodeDammit
+import os
 from os import PathLike
+
+import cchardet as chardet
 
 from .parse.dammit import UnicodeDammit
 from typing import TextIO, Generator
-import pathlib
 
 from .wrappers import gen_to_textio
 
+# UTF-8 Encoded Smart Quotes to ASCII
 _en_smart_re = {
     u"\u201c": '"',
     u"\u201d": '"',
     u"\u2018": "'",
     u"\u2019": "'",
     u"\u2026": '...',
+}
+
+# UTF-8 Smart Quote Bytes to ASCII
+_en_smart_re_bytes = {
+    b"\xe2\x80\x9c": b'"',  # U+201C Left Double Quotation Mark
+    b"\xe2\x80\x9d": b'"',  # U+201D Right Double Quotation Mark
+    b"\xe2\x80\x98": b"'",  # U+2018 Left Single Quotation Mark
+    b"\xe2\x80\x99": b"'",  # U+2019 Right Single Quotation Mark
+}
+
+_win_encodings = {
+    'WINDOWS-1250',
+    'WINDOWS-1251',
+    'WINDOWS-1252',
+    'WINDOWS-1253',
+    'WINDOWS-1255',
 }
 
 
@@ -39,7 +58,7 @@ def uread(file: str | bytes | PathLike[str], to_ascii: str = 'Smart',
 
 
 class URead:
-    def __init__(self, file: str | bytes | PathLike[str], to_ascii: str = 'Smart',
+    def __init__(self, file: str | bytes | PathLike[str], to_ascii: str = 'None',
                  escape_files: str | None = '.csv', new_quote_escape: str = '"'):
         """
         Context Manager for reading a file of unknown encoding as unicode.
@@ -55,18 +74,24 @@ class URead:
         - 'All': Convert smart quotes, then drops all non-ascii chars
         - 'None': No conversion
         """
-        self.file_path = file
+        self.file = file
         self.to_ascii = to_ascii
         self.escape_char = new_quote_escape
         self.dict = _en_smart_re
+        self.byte_dict = _en_smart_re_bytes
 
-        if escape_files:  # Escape quotes in these files
+        if isinstance(file, bytes):
+            return
+
+        if escape_files and self.escape_char:  # Escape quotes in these files
             esc_files_set = set(escape_files.split('|'))
             # Modify the dictionary if reading csv
-            ext = pathlib.Path(file).suffix
-            if ext in esc_files_set and self.escape_char:
+            ext = os.path.splitext(file)[1]
+            if ext in esc_files_set:
                 self.dict[u"\u201c"] = self.escape_char + '"'
                 self.dict[u"\u201d"] = self.escape_char + '"'
+                self.byte_dict[b"\xe2\x80\x9c"] = self.escape_char.encode('utf-8') + b'"'
+                self.byte_dict[b"\xe2\x80\x9d"] = self.escape_char.encode('utf-8') + b'"'
 
     def convert_smart(self, line: str) -> str:
         """
@@ -79,33 +104,60 @@ class URead:
         table = line.maketrans(self.dict)
         return line.translate(table)
 
+    def convert_smart_b(self, line: bytes) -> bytes:
+        """
+        Converts utf-8 smart quotes and ellipses to ascii
+
+        :param line: Byte String in UTF-8
+        :return: Converted Byte String
+        """
+        for k, v in self.byte_dict.items():
+            line = line.replace(k, v)
+        return line
+
     def _parse(self, line: bytes) -> bytes:
-        # Decode the bytes using chardet
-        decoded = UnicodeDammit(line)
-        # Print encoding
-        encoding = decoded.original_encoding
+        # Return directly if ascii
+        try:
+            line.decode('ascii', errors='strict')
+            return line
+        except UnicodeDecodeError:
+            pass
+        # Detect the line encoding using cchardet
+        detect = chardet.detect(line)
 
-        # If ascii, return directly
-        if encoding == 'ascii':
-            return decoded.unicode_markup.encode('utf-8')
+        # If UTF-8, return directly
+        if detect['encoding'] == 'UTF-8' and detect['confidence'] > 0.9:
+            if self.to_ascii.lower() == 'smart':
+                return self.convert_smart_b(line)
+            elif self.to_ascii.lower() == 'all':
+                return self.convert_smart_b(line).decode('utf-8').encode('ascii', errors='ignore')
+            else:
+                return line
 
-        # If encoding is not ascii, detwingle to convert windows-1252 if present
-        detwingled = UnicodeDammit.detwingle(line)  # Detwingled UTF-8 bytes
+        # If windows-1252 in results, we need to detwingle
+        elif detect['encoding'] in _win_encodings:
+            detwingled = UnicodeDammit.detwingle(line)  # Detwingle the line
+            # Convert smart quotes to ascii
+            if self.to_ascii.lower() == 'smart':
+                converted = self.convert_smart_b(detwingled)
+                return converted
+            # Convert smart quotes to ascii, then drop all non-ascii
+            elif self.to_ascii.lower() == 'all':
+                converted = self.convert_smart_b(detwingled)
+                converted = converted.decode('utf-8').encode('ascii', errors='ignore')
+                return converted
+            # Default behavior, regular UTF-8
+            else:
+                return detwingled
 
-        # If '1252' mode, return det_uni directly
-        if self.to_ascii.lower() == 'smart':
-            return self.convert_smart(detwingled.decode('utf-8')).encode('utf-8')
-
-        # For 'All', also remove all non-ascii chars at this point
-        elif self.to_ascii.lower() == 'all':
-            # Attempt lossy convert to ascii then back to filter out non-ascii
-            return detwingled.decode('utf-8').encode('ascii', 'ignore')
-
-        # For any other option, return as utf-8 byte-string
-        return detwingled
+        # Otherwise
+        else:
+            detwingled = UnicodeDammit.detwingle(line)  # Detwingle the line
+            raw = UnicodeDammit(detwingled).unicode_markup.encode('utf-8')
+            return raw
 
     def _as_iter(self) -> Generator[bytes]:
-        with open(self.file_path, 'rb') as f:
+        with open(self.file, 'rb') as f:
             for line in f:
                 yield self._parse(line)
 
