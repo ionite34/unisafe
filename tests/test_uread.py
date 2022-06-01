@@ -14,7 +14,7 @@ expected_raw = """1,"Oh, what is this. This is a system” now, such there.",tes
 
 expected_converted = """1,"Oh, what is this. This is a system" now, such there.",test
 2,"In these kind of "Cases", we will do some "tests" like such.",test
-3,"This is a normal sentence, but with ellipsis...",test
+3,"This is a normal sentence, but with ellipsis…",test
 """
 
 
@@ -42,7 +42,7 @@ def data_conv():
 
 @pytest.fixture(scope='function')
 def get_open():
-    return lambda: open('test.csv', 'r', encoding='utf-8')
+    return lambda: open('test.csv', 'r', encoding='windows-1252')
 
 
 @pytest.fixture(scope='function')
@@ -148,13 +148,12 @@ def test_uread_multi_encoding():
         # There should be 2 replacement chars
         assert result.count(u'\uFFFD') == 2
         # Assert literal values
-        assert result == ''☃☃☃� Some really cursed file �œ
-ₓ
-၁𖡄''
+        assert result == '☃☃☃ \uFFFDSome really cursed file\uFFFD œ ₓ ၁ 𖡄'
 
     # Using uread (Normalize Smart)
     with uread('test_multi.txt') as f:
-        result2 = f.read()
+        result = f.read()
+        assert result == '☃☃☃ “Some really cursed file” œ ₓ ၁ 𖡄'
 
 
 # Test Exceptions
