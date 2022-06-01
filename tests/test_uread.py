@@ -41,18 +41,48 @@ def data_conv():
 
 
 @pytest.fixture(scope='function')
-def get_open():
-    return lambda: open('test.csv', 'r', encoding='windows-1252')
+def get_open(temp_files):
+    return lambda: open(temp_files[0], 'r', encoding='windows-1252')
 
 
 @pytest.fixture(scope='function')
-def get_uread():
-    return lambda: uread('test.csv', escape_files=None)
+def get_uread(temp_files):
+    return lambda: uread(temp_files[0], escape_files=None)
 
 
 @pytest.fixture(scope='function')
-def get_uread_csv():
-    return lambda: uread('test.csv')
+def get_uread_csv(temp_files):
+    return lambda: uread(temp_files[0])
+
+
+# Fixture to create the files within the tempdir
+@pytest.fixture(scope='module')
+def temp_files(tmpdir_factory):
+    directory = tmpdir_factory.mktemp("data")
+    data_csv = directory.join("test.csv")
+    with data_csv.open('w', encoding='windows-1252') as f:
+        f.write(expected_raw)
+
+    utf8 = ("\N{SNOWMAN}" * 3).encode("utf8")
+    windows_1252 = (
+        " \N{LEFT DOUBLE QUOTATION MARK}Some really cursed file"
+        "\N{RIGHT DOUBLE QUOTATION MARK} ").encode("windows_1252")
+    # Multibyte characters in UTF-8
+    # to test that they don't get mistaken for smart quotes
+    multi_utf8 = (
+        '\N{LATIN SMALL LIGATURE OE} '  # 2-byte char '\xc5\x93'
+        '\N{LATIN SUBSCRIPT SMALL LETTER X} '  # 3-byte char '\xe2\x82\x93'
+        '\u1041 '  # Myanmar Digit One (U+1041)
+        '\U00016844'  # Bamum Letter Phase-A Unknown (U+16844)
+    ).encode("utf8")
+    # Join the byte strings together
+    doc = utf8 + windows_1252 + multi_utf8
+
+    multi_bin = directory.join("multi.bin")
+    with multi_bin.open("wb") as f:
+        f.write(doc)
+
+    return data_csv, multi_bin
 
 
 # Test Read Usage with Context Manager
@@ -134,16 +164,18 @@ def test_uread_cx_pandas(func, data):
 
 
 # Test Multi-Encoding File
-def test_uread_multi_encoding():
+def test_uread_multi_encoding(temp_files):
+    # Test path
+    path = temp_files[1]
     # Built-in method should fail
     with pytest.raises(UnicodeDecodeError):
-        with open('test_multi.bin', 'r', encoding='utf-8') as f:
+        with open(path, 'r', encoding='utf-8') as f:
             f.read()
     with pytest.raises(UnicodeDecodeError):
-        with open('test_multi.bin', 'r', encoding='windows-1252') as f:
+        with open(path, 'r', encoding='windows-1252') as f:
             f.read()
     # Confirm the incorrect parts with error escape
-    with open('test_multi.bin', 'r', encoding='utf-8', errors='replace') as f:
+    with open(path, 'r', encoding='utf-8', errors='replace') as f:
         result = f.read()
         # There should be 2 replacement chars
         assert result.count(u'\uFFFD') == 2
@@ -151,7 +183,7 @@ def test_uread_multi_encoding():
         assert result == '☃☃☃ \uFFFDSome really cursed file\uFFFD œ ₓ ၁ 𖡄'
 
     # Using uread (Normalize Smart)
-    with uread('test_multi.bin') as f:
+    with uread(path) as f:
         result = f.read()
         assert result == '☃☃☃ “Some really cursed file” œ ₓ ၁ 𖡄'
 
