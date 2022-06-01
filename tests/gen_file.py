@@ -6,7 +6,7 @@ def main():
 
     # Here's a Windows-1252 document.
     windows_1252 = (
-        "\N{LEFT DOUBLE QUOTATION MARK} Some really cursed file "
+        " \N{LEFT DOUBLE QUOTATION MARK}Some really cursed file"
         "\N{RIGHT DOUBLE QUOTATION MARK} ").encode("windows_1252")
 
     # Multibyte characters in UTF-8
