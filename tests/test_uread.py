@@ -137,13 +137,13 @@ def test_uread_cx_pandas(func, data):
 def test_uread_multi_encoding():
     # Built-in method should fail
     with pytest.raises(UnicodeDecodeError):
-        with open('test_multi.txt', 'r', encoding='utf-8') as f:
+        with open('test_multi.bin', 'r', encoding='utf-8') as f:
             f.read()
     with pytest.raises(UnicodeDecodeError):
-        with open('test_multi.txt', 'r', encoding='windows-1252') as f:
+        with open('test_multi.bin', 'r', encoding='windows-1252') as f:
             f.read()
     # Confirm the incorrect parts with error escape
-    with open('test_multi.txt', 'r', encoding='utf-8', errors='replace') as f:
+    with open('test_multi.bin', 'r', encoding='utf-8', errors='replace') as f:
         result = f.read()
         # There should be 2 replacement chars
         assert result.count(u'\uFFFD') == 2
@@ -151,7 +151,7 @@ def test_uread_multi_encoding():
         assert result == '☃☃☃ \uFFFDSome really cursed file\uFFFD œ ₓ ၁ 𖡄'
 
     # Using uread (Normalize Smart)
-    with uread('test_multi.txt') as f:
+    with uread('test_multi.bin') as f:
         result = f.read()
         assert result == '☃☃☃ “Some really cursed file” œ ₓ ၁ 𖡄'
 
