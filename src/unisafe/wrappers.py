@@ -4,7 +4,7 @@ import io
 from typing import Generator
 
 
-def gen_to_stream(iterable: Generator, buffer_size=io.DEFAULT_BUFFER_SIZE) -> io.BufferedReader:
+def gen_to_stream(iterable: Generator[bytes], buffer_size=io.DEFAULT_BUFFER_SIZE) -> io.BufferedReader:
     """
     Lets you use an iterable (e.g. a generator) that yields byte-strings as a read-only
     input stream.
